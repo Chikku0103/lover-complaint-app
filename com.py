@@ -1,7 +1,50 @@
 import streamlit as st
 import sqlite3
 from datetime import datetime
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import plotly.express as px
 
+# ---------------------------- EMAIL SETUP ----------------------------
+EMAILS = {
+    "Sree": "chikku@example.com",   # replace with Chikku's real email
+    "Chikku": "sree@example.com"    # replace with Sree's real email
+}
+
+def send_email(to_email, sender_name, message_text):
+    from_email = "your_email@gmail.com"  # your Gmail address
+    app_password = "your_app_password"   # your app password
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"💌 New Complaint from {sender_name}"
+    msg["From"] = from_email
+    msg["To"] = to_email
+
+    html = f"""
+    <html>
+    <body>
+        <p>Hi Love ❤️,<br><br>
+        You’ve received a new complaint from <strong>{sender_name}</strong>.<br><br>
+        <em>"{message_text}"</em><br><br>
+        Please respond with hugs and kisses. 😘
+        </p>
+    </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(from_email, app_password)
+            server.sendmail(from_email, to_email, msg.as_string())
+        st.success("💌 Email sent to your partner!")
+    except Exception as e:
+        st.error(f"Failed to send email: {e}")
+
+
+# ---------------------------- PAGE CONFIG ----------------------------
 st.set_page_config(page_title="Lover Complaint Hub ❤️", layout="centered")
 
 st.markdown("""
@@ -32,6 +75,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ---------------------------- HEADER ----------------------------
 st.markdown("""
     <div style='text-align: center; padding: 20px 0 10px 0;'>
         <img src='https://images.unsplash.com/photo-1583083527882-4bee9aba2eea?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fGN1dGUlMjBjYXR8ZW58MHx8MHx8fDA%3D' width='80' style='border-radius: 50%; margin-right: 15px;'/>
@@ -52,7 +96,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-
+# ---------------------------- DATABASE ----------------------------
 conn = sqlite3.connect('lover_complaints.db')
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS complaints
@@ -63,6 +107,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS complaints
               timestamp TEXT)''')
 conn.commit()
 
+# ---------------------------- FORM ----------------------------
 st.title("💌 Lover Complaint Page")
 st.markdown("Welcome to the *Lover Complaint Hub*, where love meets honesty. Submit and resolve complaints with kindness! 💖")
 
@@ -81,6 +126,11 @@ if submit_complaint:
         conn.commit()
         st.success("Your complaint has been safely submitted with love 💕")
 
+        # ✉️ Send Email to the other person
+        receiver = "Sree" if account_holder == "Chikku" else "Chikku"
+        send_email(EMAILS[receiver], account_holder, complaint)
+
+# ---------------------------- SHOW COMPLAINTS ----------------------------
 st.subheader("📜 All Complaints")
 
 c.execute("SELECT * FROM complaints ORDER BY id DESC")
@@ -105,8 +155,7 @@ if complaints:
 else:
     st.info("No complaints yet. Everything seems peaceful! ☮️")
 
-import plotly.express as px
-
+# ---------------------------- PIE CHART ----------------------------
 c.execute("SELECT complainer, COUNT(*) FROM complaints GROUP BY complainer")
 data = c.fetchall()
 
@@ -123,5 +172,5 @@ if data:
     fig.update_traces(textposition='inside', textinfo='percent+label')
     st.plotly_chart(fig)
 
-# --- Close DB ---
+# ---------------------------- CLOSE DB ----------------------------
 conn.close()
